@@ -1,7 +1,10 @@
 #![windows_subsystem = "windows"]
 
+mod config;
+
 use std::{thread, time::Duration};
 
+use config::CONFIG;
 use windows::{
     core::*,
     Win32::{
@@ -32,18 +35,18 @@ unsafe extern "system" fn event_hook_callback(
     let hkl = GetKeyboardLayout(thread_id);
 
     // Check if the current IME status matches Chinese (0x804)~
-    if ((hkl.0 as u32 & 0xffff) == 0x804) && (hwnd.0 != std::ptr::null_mut()) {
+    if !hkl.is_invalid() && ((hkl.0 as u32 & 0xffff) == CONFIG.ime_input_method) {
         // Get the ime window handle
         let ime_hwnd = ImmGetDefaultIMEWnd(hwnd);
         // Switch the IME state
-        println!("Chinese input method detected, forcing Chinese mode.");
+        println!("Input method = {:x} detected, forcing conversion mode = {:x}.", CONFIG.ime_input_method, CONFIG.ime_cmode);
         // Sometimes the message will miss if we don't sleep for a little while.
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(CONFIG.sleep_millis));
         SendMessageW(
             ime_hwnd,
             WM_IME_CONTROL,
             WPARAM(IMC_SETCONVERSIONMODE as usize),
-            LPARAM(1025), // Chinese
+            LPARAM(CONFIG.ime_cmode),
         );
     }
 }
@@ -53,7 +56,7 @@ const IDI_ICON1: u16 = 101;
 const IDM_EXIT: u32 = 1001;
 const NOTIFYICONMESSAGE: u32 = WM_USER + 100;
 
-fn add_tray_icon(hwnd: HWND) -> windows::core::Result<()> {
+fn add_tray_icon(hwnd: HWND) -> Result<()> {
     let h_instance = unsafe { GetModuleHandleW(None) }?;
 
     let mut nid = NOTIFYICONDATAW {
@@ -73,7 +76,7 @@ fn add_tray_icon(hwnd: HWND) -> windows::core::Result<()> {
         }
 
         // Add the icon
-        Shell_NotifyIconW(NIM_ADD, &mut nid);
+        let _ = Shell_NotifyIconW(NIM_ADD, &mut nid);
     }
     Ok(())
 }
@@ -104,10 +107,10 @@ unsafe extern "system" fn window_proc(
                 );
 
                 // Set the foreground window to the current window to ensure the menu closes properly
-                SetForegroundWindow(hwnd);
+                let _ = SetForegroundWindow(hwnd);
 
                 // Track the popup menu at the cursor position
-                TrackPopupMenu(hmenu, TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, None);
+                let _ = TrackPopupMenu(hmenu, TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, None);
 
                 // Required to make sure the menu closes on time
                 let _ = PostMessageW(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
@@ -132,7 +135,7 @@ unsafe extern "system" fn window_proc(
     LRESULT(0)
 }
 
-fn main() -> windows::core::Result<()> {
+fn main() -> Result<()> {
     unsafe {
         let class_name_str: &'static str = "hidden_window_class";
         let class_name_wide: Vec<u16> = class_name_str
@@ -161,7 +164,7 @@ fn main() -> windows::core::Result<()> {
         let class_atom = RegisterClassW(&wc);
         if class_atom == 0 {
             // Handle error
-            return Err(windows::core::Error::from_win32());
+            return Err(Error::from_win32());
         }
 
         // Create the hidden window
@@ -182,7 +185,7 @@ fn main() -> windows::core::Result<()> {
 
         if hwnd.as_ref().map_or(true, |h| h.0.is_null()) {
             // Handle error
-            return Err(windows::core::Error::from_win32());
+            return Err(Error::from_win32());
         }
 
         // Add the tray icon using 'hwnd'
@@ -209,12 +212,12 @@ fn main() -> windows::core::Result<()> {
         // Message loop
         let mut message = MSG::default();
         while GetMessageW(&mut message, HWND(std::ptr::null_mut()), 0, 0).into() {
-            TranslateMessage(&message);
+            let _ = TranslateMessage(&message);
             DispatchMessageW(&message);
         }
 
         // Unhook before exit
-        UnhookWinEvent(hook);
+        let _ = UnhookWinEvent(hook);
     }
 
     Ok(())
