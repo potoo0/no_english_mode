@@ -20,7 +20,7 @@
 
 可在环境变量或者可执行程序所在目录下的 `.env` 文件中配置，配置项(示例见 [.env.example](.env.example)):
 - IME_SWITCHER_INPUT_METHOD: 配置需要监听的目标输入法，十六进制（`0x` 前导可省略）。取值见 [win11 input locales](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/default-input-locales-for-windows-language-packs?view=windows-11#input-locales)
-- IME_SWITCHER_CMODE: 配置输入法的模式，十六进制（`0x` 前导可省略）。取值见 [ime conversion mode values](https://learn.microsoft.com/en-us/windows/win32/intl/ime-conversion-mode-values)。对应 win11 设置的 *微软拼音输入法 > 常规* 下的 *默认模式*
+- IME_SWITCHER_CMODE: 配置输入法的模式。取值见 [ime conversion mode values](https://learn.microsoft.com/en-us/windows/win32/intl/ime-conversion-mode-values)。对应 win11 设置的 *微软拼音输入法 > 常规* 下的 *默认模式*
   - 英文模式: `0`
   - 中文模式: `1025`
 - IME_SWITCHER_SLEEP_MILLIS: 切换的等待时间，时间太短可能会被系统改回去，可以根据情况调整，建议值 20-50 之间
